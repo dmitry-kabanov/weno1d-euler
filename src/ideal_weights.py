@@ -3,8 +3,8 @@ prod_list = []
 prod_denom_list = []
 
 for j in range(2 * k - 1):
-    print "===="
-    print "mu %s" % j
+    print("====")
+    print("mu %s")% j
 
     for m in range(j + 1, 2 * k):
         numerator = 0.0
@@ -26,7 +26,7 @@ for j in range(2 * k - 1):
             #     prod_list.append(prod)
             #     prod_denom_list.append(prod_denom)
 
-        print "%d / %d" % (numerator, prod_denom)
+        print("%d / %d" % (numerator, prod_denom))
     # sum = 0.0
     # common_denom = 1
     # for i in range(len(prod_denom_list)):
