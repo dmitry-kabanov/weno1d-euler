@@ -3,8 +3,7 @@ import numpy as np
 
 class Weno3:
     def __init__(self, left_boundary, right_boundary, ncells,
-                 flux_callback, flux_deriv_callback, max_flux_deriv_callback,
-                 char_speed, cfl_number=0.8, eps=1.0e-6):
+                 gamma, cfl_number=0.8, eps=1.0e-6):
         """
 
         :rtype : Weno3
@@ -14,16 +13,12 @@ class Weno3:
         self.N = ncells
         self.dx = (b - a) / (self.N + 0.0)
         self.CFL_NUMBER = cfl_number
-        self.CHAR_SPEED = char_speed
         self.t = 0.0
         ORDER_OF_SCHEME = 3
         self.EPS = eps
         # Ideal weights for the right boundary.
         self.iw_right = np.array([[3.0 / 10.0], [6.0 / 10.0], [1.0 / 10.0]])
         self.iw_left = np.array([[1.0 / 10.0], [6.0 / 10.0], [3.0 / 10.0]])
-        self.flux = flux_callback
-        self.flux_deriv = flux_deriv_callback
-        self.max_flux_deriv = max_flux_deriv_callback
         self.x_boundary = np.linspace(a, b, self.N + 1)
         self.x_center = np.zeros(self.N)
 
@@ -43,26 +38,45 @@ class Weno3:
         self.omega_right = np.zeros((ORDER_OF_SCHEME, self.N))
         self.omega_left = np.zeros((ORDER_OF_SCHEME, self.N))
         self.fFlux = np.zeros(self.N + 1)
-        self.rhsValues = np.zeros(self.N)
-        self.u_multistage = np.zeros((3, self.N))
+        self.rhsValues = np.zeros(3 * self.N)
+        self.u_multistage = np.zeros((3, 3 * self.N))
 
+        # Physical variables
         self.rho = np.zeros(self.N)
-        self.rhou = np.zeros(self.N)
-        self.rhoe = np.zeros(self.N)
+        self.rho_u = np.zeros(self.N)
+        self.rho_etotal = np.zeros(self.N)
         self.u = np.zeros(self.N)
         self.etotal = np.zeros(self.N)
-        self.e = np.zeros(self.N)
         self.p = np.zeros(self.N)
+
+        self.rho_left_boundary = np.zeros(self.N)
         self.rho_right_boundary = np.zeros(self.N)
-        self.rhou_left_boundary = np.zeros(self.N)
-        self.rhoe_right_boundary = np.zeros(self.N)
+        self.rho_u_left_boundary = np.zeros(self.N)
+        self.rho_u_right_boundary = np.zeros(self.N)
+        self.rho_etotal_left_boundary = np.zeros(self.N)
+        self.rho_etotal_right_boundary = np.zeros(self.N)
+        self.u_left_boundary = np.zeros(self.N)
+        self.u_right_boundary = np.zeros(self.N)
+        self.etotal_left_boundary = np.zeros(self.N)
+        self.etotal_right_boundary = np.zeros(self.N)
+        self.p_left_boundary = np.zeros(self.N)
+        self.p_right_boundary = np.zeros(self.N)
+
+        # Auxilariary variables.
         self.v_left_boundary = np.zeros(self.N)
         self.v_right_boundary = np.zeros(self.N)
         self.v_left_boundary = np.zeros(self.N)
         self.v_right_boundary = np.zeros(self.N)
         self.v_left_boundary = np.zeros(self.N)
 
+        # Solutions of Riemann problem.
+        self.rho_star = np.zeros(self.N + 1)
+        self.u_star = np.zeros(self.N + 1)
+        self.p_star = np.zeros(self.N + 1)
+        self.etotal_star = np.zeros(self.N + 1)
+
     def integrate(self, u0, time_final):
+        self.reconstruct_primitive_variables()
         self.dt = self.CFL_NUMBER * self.dx / self.CHAR_SPEED
         self.T = time_final
         self.u_multistage[0] = u0
@@ -83,7 +97,29 @@ class Weno3:
 
         return self.u_multistage[0]
 
-    def rhs(self, u):
+    def reconstruct_primitive_variables(self):
+        self.rho_left_boundary, self.rho_right_boundary = \
+            self.reconstruct(self, self.rho)
+        self.rho_u_left_boundary, self.rho_u_right_boundary = \
+            self.reconstruct(self, self.rho_u)
+        self.rho_etotal_left_boundary, self.rho_etotal_right_boundary = \
+            self.reconstruct(self, self.rho_etotal)
+        self.u_left_boundary = \
+            self.rho_u_left_boundary / self.rho_left_boundary
+        self.u_right_boundary = \
+            self.rho_u_right_boundary / self.rho_right_boundary
+        self.etotal_left_boundary = \
+            self.rho_etotal_left_boundary / self.rho_left_boundary
+        self.etotal_right_boundary = \
+            self.rho_etotal_right_boundary / self.rho_right_boundary
+        self.p_left_boundary = \
+            (self.etotal_left_boundary - self.u_left_boundary ** 2 / 2.0) / \
+            (self.gamma - 1.0) / self.rho_left_boundary
+        self.p_right_boundary = \
+            (self.etotal_right_boundary - self.u_right_boundary ** 2 / 2.0) / \
+            (self.gamma - 1.0) / self.rho_right_boundary
+
+    def reconstruct(self, u):
         # WENO Reconstruction
         # Approximations for inner cells 0 < i < N-1.
         self.v_right_boundary_approx[0][2:-2] = 1.0 / 3.0 * u[2:-2] + \
@@ -213,27 +249,36 @@ class Weno3:
         return self.v_left_boundary, self.v_right_boundary
 
     def solve_riemann_problem(self):
-        # Numerical flux calculation.
-        self.fFlux[1:-1] = self.numflux(self.v_right_boundary[0:-1],
-                                        self.v_left_boundary[1:])
-        self.fFlux[0] = self.numflux(self.v_right_boundary[self.N - 1],
-                                     self.v_left_boundary[0])
-        self.fFlux[self.N] = self.numflux(self.v_right_boundary[self.N - 1],
-                                          self.v_left_boundary[0])
+        for i in range(0, self.N - 1):
+            leftSide = {"rho": self.rho_right_boundary[i],
+                        "u": self.u_right_boundary[i],
+                        "p": self.p_right_boundary[i]}
+            rightSide = {"rho": self.rho_left_boundary[i + 1],
+                         "u": self.u_left_boundary[i + 1],
+                         "p": self.p_left_boundary[i + 1]}
+            self.rho_star[i + 1], self.u_star[i + 1], self.p_star[i + 1] = \
+                self.rs.solve(leftSide, rightSide, self.gamma)
 
-        # Right hand side calculation.
-        rhsValues = self.fFlux[1:] - self.fFlux[0:-1]
-        rhsValues = -rhsValues / self.dx
+        self.etotal_star[:] = self.p_star[:] / (self.gamma - 1.0) / \
+            self.rho_star[:] + self.u_star[:] * self.u_star[:] / 2.0
 
-        return rhsValues
+    def compute_fluxes(self):
+        # Compute fluxes on the cells boundaries.
+        self.flux_mass[:] = self.rho_star[:] * self.u_star[:]
+        self.flux_momentum[:] = self.rho_star[:] * \
+            self.u_star[:] * self.u_star[:] + self.p_star[:]
+        self.flux_energy[:] = self.rho_star * self.u_star[:] * \
+            self.etotal_star[:] + self.p_star[:] * self.u_star[:]
 
-    def numflux(self, a, b):
-        """
-        Return Lax-Friedrichs numerical flux.
-        """
-        maxval = self.max_flux_deriv(a, b)
+        # Compute flux change in every cell.
+        self.rhsValues[0:self.N] = self.flux_mass[1:] - self.flux_mass[0:-1]
+        self.rhsValues[self.N:2 * self.N] = \
+            self.flux_momentum[1:] - self.flux_momentum[0:-1]
+        self.rhsValues[2 * self.N:3 * self.N] = \
+            self.flux_energy[1:] - self.flux_energy[0:-1]
+        self.rhsValues = -self.rhsValues / self.dx
 
-        return 0.5 * (self.flux(a) + self.flux(b) - maxval * (b - a))
+        return self.rhsValues
 
     def get_x_center(self):
         return self.x_center
