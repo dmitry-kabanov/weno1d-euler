@@ -5,7 +5,7 @@ import scipy.optimize as sco
 class riemannSolver:
     """
         Exact Riemann solver for calorically perfect gas from the book
-        of Godunov S. K, et al. Numerical solution of multidimensional 
+        of Godunov S. K, et al. Numerical solution of multidimensional
         problems of gas dynamics. Nauka, 1976, pp. 105-117
     """
 
@@ -50,10 +50,10 @@ class riemannSolver:
     def complete_func(self, p_iter):
         term1 = self.func(p_iter, self.leftSide["p"], self.leftSide["rho"], self.leftSide["c"])
         term2 = self.func(p_iter, self.rightSide["p"], self.rightSide["rho"], self.rightSide["c"])
-        term3 = self.rightSide["u"] - self.leftSide["u"] 
+        term3 = self.rightSide["u"] - self.leftSide["u"]
         return term1 + term2 + term3
 
-    
+
     def complete_dfunc(self, p_iter):
         term1 = self.dfunc(p_iter, self.leftSide["p"], self.leftSide["rho"], self.leftSide["c"])
         term2 = self.dfunc(p_iter, self.rightSide["p"], self.rightSide["p"], self.rightSide["c"])
