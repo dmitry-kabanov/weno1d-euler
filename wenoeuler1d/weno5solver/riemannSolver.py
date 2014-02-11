@@ -247,15 +247,15 @@ class riemannSolver:
         speed_head = self.rightSide["u"] + self.rightSide["c"]
         speed_tail = self.u_contact + c_star
 
-        # We are between the tail of left rarefaction and contact discontinuity.
-        if speed_tail <= 0:
-            p_ratio = self.p_contact / self.leftSide["p"]
-            rho_left = self.leftSide["rho"] * math.pow(p_ratio, 1.0 / self.gamma)
+        # We are between the tail of right rarefaction and contact discontinuity.
+        if speed_tail >= 0:
+            p_ratio = self.p_contact / self.rightSide["p"]
+            rho = self.rightSide["rho"] * math.pow(p_ratio, 1.0 / self.gamma)
             self.p_solution = self.p_contact
             self.u_solution = self.u_contact
-            self.rho_solution = rho_left
-        # We are inside of the left rarefaction.
-        elif speed_head < 0 and speed_tail > 0:
+            self.rho_solution = rho
+        # We are inside of the right rarefaction.
+        elif speed_head > 0 and speed_tail < 0:
             expr = self.two_over_gp1 - (
                 self.gm1_over_gp1 * self.rightSide["u"] / self.rightSide["c"])
             self.rho_solution = self.rightSide["rho"] * math.pow(expr, self.two_over_gm1)
