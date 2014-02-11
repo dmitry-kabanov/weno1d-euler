@@ -1,7 +1,7 @@
 import numpy as np
 
-import wenoeuler1d.weno5solver.weno3Interpolator as wi
-import wenoeuler1d.weno5solver.riemannSolver as rs
+import wenoeuler1d.weno5solver.weno3interpolator as wi
+import wenoeuler1d.weno5solver.riemannsolver as rs
 
 
 class Weno3:

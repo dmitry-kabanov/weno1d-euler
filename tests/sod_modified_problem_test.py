@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.getcwd())
 
 import wenoeuler1d.weno5solver.weno3 as w3
-import wenoeuler1d.weno5solver.riemannSolver as rs
+import wenoeuler1d.weno5solver.riemannsolver as rs
 
 np.seterr(all='raise')
 

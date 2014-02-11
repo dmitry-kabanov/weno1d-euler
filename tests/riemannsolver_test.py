@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import wenoeuler1d.weno5solver.riemannSolver as rs
+import wenoeuler1d.weno5solver.riemannsolver as rs
 
 
 def solve_riemann_problem(leftSide, rightSide, time, title, bounds):
