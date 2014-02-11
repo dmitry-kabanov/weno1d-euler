@@ -32,7 +32,7 @@ class riemannSolver:
     def func(self, p_iter, p, rho, c):
         assert p_iter > 0, 'Pressure must be positive'
         # Shock wave.
-        if (p_iter > p):
+        if p_iter > p:
             coeff = p_iter - p
             A = 2.0 / (self.gp1 * rho)
             B = self.gm1_over_gp1 * p
@@ -187,7 +187,7 @@ class riemannSolver:
         speed_head = self.leftSide["u"] - self.leftSide["c"]
         speed_tail = self.u_contact - c_star
 
-        # We are between the tail of left rarefaction and contact discontinuity.
+        # We are between the tail of left rarefaction and contact.
         if speed_tail <= 0:
             p_ratio = self.p_contact / self.leftSide["p"]
             self.rho_solution = self.leftSide["rho"] * math.pow(
@@ -195,7 +195,7 @@ class riemannSolver:
             self.u_solution = self.u_contact
             self.p_solution = self.p_contact
         # We are inside of the left rarefaction.
-        elif speed_head < 0 and speed_tail > 0:
+        elif speed_head < 0 < speed_tail:
             expr = self.two_over_gp1 + (
                 self.gm1_over_gp1 * self.leftSide["u"] / self.leftSide["c"])
             self.rho_solution = self.leftSide["rho"] * math.pow(
@@ -231,7 +231,7 @@ class riemannSolver:
         speed_head = self.rightSide["u"] + self.rightSide["c"]
         speed_tail = self.u_contact + c_star
 
-        # We are between the tail of right rarefaction and contact discontinuity.
+        # We are between the tail of right rarefaction and contact.
         if speed_tail >= 0:
             p_ratio = self.p_contact / self.rightSide["p"]
             self.rho_solution = self.rightSide["rho"] * math.pow(
@@ -239,7 +239,7 @@ class riemannSolver:
             self.u_solution = self.u_contact
             self.p_solution = self.p_contact
         # We are inside of the right rarefaction.
-        elif speed_head > 0 and speed_tail < 0:
+        elif speed_tail < 0 < speed_head:
             expr = self.two_over_gp1 - (
                 self.gm1_over_gp1 * self.rightSide["u"] / self.rightSide["c"])
             self.rho_solution = self.rightSide["rho"] * math.pow(
