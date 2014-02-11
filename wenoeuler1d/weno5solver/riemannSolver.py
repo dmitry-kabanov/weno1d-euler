@@ -4,8 +4,9 @@ import math
 class riemannSolver:
     """
         Exact Riemann solver for calorically perfect gas from the book
-        of Godunov S. K, et al. Numerical solution of multidimensional
-        problems of gas dynamics. Nauka, 1976, pp. 105-117
+        Toro, E. F. (2009). Riemann Solvers and Numerical Methods
+        for Fluid Dynamics. A Practical Introduction (3rd ed.).
+        Springer Berlin Heidelberg. doi:10.1007/b79761
     """
 
     def __init__(self):
@@ -61,12 +62,7 @@ class riemannSolver:
             coeff1 = math.sqrt(A / (B + p_iter))
             coeff2 = 1 - (p_iter - p) / (2 * (B + p_iter))
             result = coeff1 * coeff2
-            assert result > 0, "f'(p) must be positive (shock case)\n" \
-                               "leftSide = (rho: %f, u: %f, p: %f)\n" \
-                               "rightSide = (rho: %f, u: %f, p: %f)\n" % (
-                                   self.leftSide["rho"], self.leftSide["u"],
-                                   self.leftSide["p"], self.rightSide["rho"],
-                                   self.rightSide["u"], self.rightSide["p"])
+            assert result > 0, "f'(p) must be positive (shock case)"
             return result
         # Rarefaction wave.
         else:
@@ -74,29 +70,20 @@ class riemannSolver:
             power_expr = math.pow(p_ratio, -self.gp1_over2g)
             coeff = 1.0 / (rho * c)
             result = coeff * power_expr
-            assert result > 0, "f'(p) must be positive (rarefaction case)\n" \
-                               "leftSide = (rho: %f, u: %f, p: %f)\n" \
-                               "rightSide = (rho: %f, u: %f, p: %f)\n" % (
-                                   self.leftSide["rho"], self.leftSide["u"],
-                                   self.leftSide["p"], self.rightSide["rho"],
-                                   self.rightSide["u"], self.rightSide["p"])
+            assert result > 0, "f'(p) must be positive (rarefaction case)"
             return result
 
     def solve(self, leftSide, rightSide, gamma):
-        try:
-            assert "rho" in leftSide
-            assert "u" in leftSide
-            assert "p" in leftSide
-            assert "rho" in rightSide
-            assert "u" in rightSide
-            assert "p" in rightSide
-            assert leftSide["rho"] > 0
-            assert leftSide["p"] > 0
-            assert rightSide["rho"] > 0
-            assert rightSide["p"] > 0
-        except:
-            print(leftSide)
-            print(rightSide)
+        assert "rho" in leftSide
+        assert "u" in leftSide
+        assert "p" in leftSide
+        assert "rho" in rightSide
+        assert "u" in rightSide
+        assert "p" in rightSide
+        assert leftSide["rho"] > 0
+        assert leftSide["p"] > 0
+        assert rightSide["rho"] > 0
+        assert rightSide["p"] > 0
 
         self.leftSide = leftSide
         self.rightSide = rightSide
@@ -118,12 +105,7 @@ class riemannSolver:
         self.two_over_gm1 = 2.0 / (self.gamma - 1.0)
         self.two_g_over_gm1 = 2.0 * self.gamma / (self.gamma - 1.0)
 
-        try:
-            self.p_contact = self.compute_p_contact()
-        except:
-            raise Exception("Newton method failed to find "
-                            "solution for Riemann problem")
-
+        self.p_contact = self.compute_p_contact()
         assert self.complete_func(self.p_contact) < self.TOLERANCE
 
         self.detect_wave_configuration()
@@ -135,6 +117,9 @@ class riemannSolver:
         return self.rho_solution, self.u_solution, self.p_solution
 
     def compute_p_contact(self):
+        """ Find pressure in the region between waves.
+        Use Newton method to find the pressure.
+        """
         p0 = 0.5 * (self.leftSide["p"] + self.rightSide["p"])
         number_of_iterations = 0
 
@@ -153,7 +138,6 @@ class riemannSolver:
         raise Exception(
             "solve_for_pressure() exceeded max number of iterations.")
 
-
     def detect_wave_configuration(self):
         if self.p_contact > self.leftSide["p"]:
             self.LEFT_SHOCK = True
@@ -170,7 +154,7 @@ class riemannSolver:
             self.RIGHT_SHOCK = False
 
     def compute_u_contact(self):
-        """ Compute velocity on C0-characteristic."""
+        """ Compute velocity in the region between waves."""
 
         term1 = self.leftSide["u"] + self.rightSide["u"]
         func_right = self.func(self.p_contact, self.rightSide["p"],
@@ -206,34 +190,34 @@ class riemannSolver:
         # We are between the tail of left rarefaction and contact discontinuity.
         if speed_tail <= 0:
             p_ratio = self.p_contact / self.leftSide["p"]
-            rho_left = self.leftSide["rho"] * math.pow(p_ratio, 1.0 / self.gamma)
-            self.p_solution = self.p_contact
+            self.rho_solution = self.leftSide["rho"] * math.pow(
+                p_ratio, 1.0 / self.gamma)
             self.u_solution = self.u_contact
-            self.rho_solution = rho_left
+            self.p_solution = self.p_contact
         # We are inside of the left rarefaction.
         elif speed_head < 0 and speed_tail > 0:
             expr = self.two_over_gp1 + (
                 self.gm1_over_gp1 * self.leftSide["u"] / self.leftSide["c"])
-            self.rho_solution = self.leftSide["rho"] * math.pow(expr, self.two_over_gm1)
-            self.u_solution = self.two_over_gp1 * (self.leftSide["c"] +
-                self.gm1_over2 * self.leftSide["u"])
+            self.rho_solution = self.leftSide["rho"] * math.pow(
+                expr, self.two_over_gm1)
+            self.u_solution = self.two_over_gp1 * (
+                self.leftSide["c"] + self.gm1_over2 * self.leftSide["u"])
             self.p_solution = self.leftSide["p"] * math.pow(
                 expr, self.two_g_over_gm1)
         # We are ahead of the left rarefaction head.
         else:
-            self.p_solution = self.leftSide["p"]
-            self.u_solution = self.leftSide["u"]
             self.rho_solution = self.leftSide["rho"]
+            self.u_solution = self.leftSide["u"]
+            self.p_solution = self.leftSide["p"]
 
     def compute_rho_right_shock(self):
         assert self.RIGHT_SHOCK is True
         p_ratio = self.p_contact / self.rightSide["p"]
         numer = p_ratio + self.gm1_over_gp1
         denom = self.gm1_over_gp1 * p_ratio + 1.0
-        rho_right = self.rightSide["rho"] * numer / denom
-        self.p_solution = self.p_contact
+        self.rho_solution = self.rightSide["rho"] * numer / denom
         self.u_solution = self.u_contact
-        self.rho_solution = rho_right
+        self.p_solution = self.p_contact
 
     def compute_rho_right_rarefaction(self):
         assert self.RIGHT_RAREFACTION is True
@@ -241,7 +225,7 @@ class riemannSolver:
         # 1. We calculate the density behind the rarefaction.
         # 2. We compute the density inside the rarefaction.
         # 3. We compute the density ahead of the rarefaction
-        # (it's just initial data on the left).
+        # (it's just initial data on the right).
         p_ratio = self.p_contact / self.rightSide["p"]
         c_star = self.rightSide["c"] * math.pow(p_ratio, self.gm1_over2g)
         speed_head = self.rightSide["u"] + self.rightSide["c"]
@@ -250,17 +234,18 @@ class riemannSolver:
         # We are between the tail of right rarefaction and contact discontinuity.
         if speed_tail >= 0:
             p_ratio = self.p_contact / self.rightSide["p"]
-            rho = self.rightSide["rho"] * math.pow(p_ratio, 1.0 / self.gamma)
-            self.p_solution = self.p_contact
+            self.rho_solution = self.rightSide["rho"] * math.pow(
+                p_ratio, 1.0 / self.gamma)
             self.u_solution = self.u_contact
-            self.rho_solution = rho
+            self.p_solution = self.p_contact
         # We are inside of the right rarefaction.
         elif speed_head > 0 and speed_tail < 0:
             expr = self.two_over_gp1 - (
                 self.gm1_over_gp1 * self.rightSide["u"] / self.rightSide["c"])
-            self.rho_solution = self.rightSide["rho"] * math.pow(expr, self.two_over_gm1)
+            self.rho_solution = self.rightSide["rho"] * math.pow(
+                expr, self.two_over_gm1)
             self.u_solution = self.two_over_gp1 * (-self.rightSide["c"] +
-                                                  self.gm1_over2 * self.rightSide["u"])
+                self.gm1_over2 * self.rightSide["u"])
             self.p_solution = self.rightSide["p"] * math.pow(
                 expr, self.two_g_over_gm1)
         # We are ahead of the right rarefaction head.
