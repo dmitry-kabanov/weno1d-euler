@@ -10,53 +10,75 @@ import wenoeuler1d.weno5solver.riemannsolver as rs
 
 np.seterr(all='raise')
 
-N = 100
 GAMMA = 1.4
 T = 0.2
 lb = 0.0
 rb = 1.0
 discontinuity_position = 0.3
-p = np.zeros(N)
-u = np.zeros(N)
-rho = np.zeros(N)
-ic = np.zeros(3 * N)
-
-ws = w3.Weno3(lb, rb, N, GAMMA, cfl_number=0.3)
-x = ws.get_x_center()
-
 sod_left = {'rho': 1.0, 'u': 0.75, 'p': 1.0}
 sod_right = {'rho': 0.125, 'u': 0.0, 'p': 0.1}
 
-for i in range(0, N):
-    if x[i] < discontinuity_position:
-        rho[i] = sod_left["rho"]
-        u[i] = sod_left["u"]
-        p[i] = sod_left["p"]
-    else:
-        rho[i] = sod_right["rho"]
-        u[i] = sod_right["u"]
-        p[i] = sod_right["p"]
+grid_size_list = [1280, 2560, 5120, 10240]
+error_norm_list = []
+dx_list = []
 
-ic[0:N] = rho
-ic[N:2*N] = u
-ic[2*N:3*N] = p
+for N in grid_size_list:
+    p = np.zeros(N)
+    u = np.zeros(N)
+    rho = np.zeros(N)
+    ic = np.zeros(3 * N)
 
-solution = ws.integrate(ic, T)
-rho = solution[0:N]
-u = solution[N:2*N] / rho
-etotal = solution[2*N:3*N] / rho
-pressure = (etotal - u**2 / 2.0) * (GAMMA - 1.0) * rho
+    ws = w3.Weno3(lb, rb, N, GAMMA, cfl_number=0.3)
+    x = ws.get_x_center()
+    dx = ws.get_dx()
 
-riemannSolver = rs.riemannSolver()
-riemannSolver.solve(sod_left, sod_right, gamma=GAMMA)
-rho_rs = np.zeros(x.size)
-u_rs = np.zeros(x.size)
-p_rs = np.zeros(x.size)
+    for i in range(0, N):
+        if x[i] < discontinuity_position:
+            rho[i] = sod_left["rho"]
+            u[i] = sod_left["u"]
+            p[i] = sod_left["p"]
+        else:
+            rho[i] = sod_right["rho"]
+            u[i] = sod_right["u"]
+            p[i] = sod_right["p"]
 
-for i in range(x.size):
-    coord = x[i] - discontinuity_position
-    rho_rs[i], u_rs[i], p_rs[i] = riemannSolver.sample_solution(coord / T)
+    ic[0:N] = rho
+    ic[N:2*N] = u
+    ic[2*N:3*N] = p
 
-plt.plot(x, pressure, 'o')
-plt.plot(x, p_rs, '-')
-plt.show()
+    solution = ws.integrate(ic, T)
+    rho = solution[0:N]
+    u = solution[N:2*N] / rho
+    etotal = solution[2*N:3*N] / rho
+    pressure = (etotal - u**2 / 2.0) * (GAMMA - 1.0) * rho
+
+    riemannSolver = rs.riemannSolver()
+    riemannSolver.solve(sod_left, sod_right, gamma=GAMMA)
+    rho_rs = np.zeros(x.size)
+    u_rs = np.zeros(x.size)
+    p_rs = np.zeros(x.size)
+
+    for i in range(x.size):
+        coord = x[i] - discontinuity_position
+        rho_rs[i], u_rs[i], p_rs[i] = riemannSolver.sample_solution(coord / T)
+
+    error_vector = []
+    for i in range(x.size):
+        if 0.25 < x[i] < 0.35 or 0.4 < x[i] < 0.7:
+            error_vector.append(pressure[i] - p_rs[i])
+
+    error_norm_list.append(dx * np.linalg.norm(error_vector, 1))
+    dx_list.append(dx)
+
+for i in range(len(error_norm_list)):
+    print(dx_list[i], error_norm_list[i])
+plt.loglog(dx_list, error_norm_list, '-o', label=r'$\|E\|_1$')
+plt.loglog(dx_list, [10000*x**5 for x in dx_list], '-s',
+    label=r'$10000 x^5 $')
+plt.loglog(dx_list, [1000*x**2 for x in dx_list], '-^',
+           label=r'$100 x^2 $')
+plt.xlabel(r'$\Delta x$')
+plt.ylabel(r'$\mathrm{Error}$')
+plt.legend(loc='best')
+# plt.show()
+plt.savefig('images/sod_modified_problem_convergence.eps')
