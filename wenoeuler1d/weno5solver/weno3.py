@@ -89,16 +89,14 @@ class Weno3:
                 self.dt = self.T - self.t
 
             self.t += self.dt
-            # self.u_multistage[1] = self.u_multistage[0] + \
-            #     self.dt * self.rhs(self.u_multistage[0])
-            # self.u_multistage[2] = (
-            #     3 * self.u_multistage[0] + self.u_multistage[1] +
-            #     self.dt * self.rhs(self.u_multistage[1])) / 4.0
-            # self.u_multistage[0] = (
-            #     self.u_multistage[0] + 2.0 * self.u_multistage[2] +
-            #     2.0 * self.dt * self.rhs(self.u_multistage[2])) / 3.0
-            self.u_multistage[0] += self.dt * self.rhs(
-                self.u_multistage[0])
+            self.u_multistage[1] = self.u_multistage[0] + \
+                self.dt * self.rhs(self.u_multistage[0])
+            self.u_multistage[2] = (
+                3 * self.u_multistage[0] + self.u_multistage[1] +
+                self.dt * self.rhs(self.u_multistage[1])) / 4.0
+            self.u_multistage[0] = (
+                self.u_multistage[0] + 2.0 * self.u_multistage[2] +
+                2.0 * self.dt * self.rhs(self.u_multistage[2])) / 3.0
 
             n = self.N
             rho = self.u_multistage[0][0:n]
