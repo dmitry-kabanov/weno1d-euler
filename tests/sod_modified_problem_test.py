@@ -11,6 +11,7 @@ import wenoeuler1d.weno5solver.riemannsolver as rs
 np.seterr(all='raise')
 
 N = 100
+CFL_NUMBER = 0.3
 GAMMA = 1.4
 T = 0.2
 lb = 0.0
@@ -21,7 +22,7 @@ u = np.zeros(N)
 rho = np.zeros(N)
 ic = np.zeros(3 * N)
 
-ws = w3.Weno3(lb, rb, N, GAMMA, cfl_number=0.3)
+ws = w3.Weno3(lb, rb, N, GAMMA, cfl_number=CFL_NUMBER)
 x = ws.get_x_center()
 
 sod_left = {'rho': 1.0, 'u': 0.75, 'p': 1.0}
