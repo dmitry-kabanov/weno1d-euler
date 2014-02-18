@@ -58,6 +58,15 @@ for i in range(x.size):
     coord = x[i] - discontinuity_position
     rho_rs[i], u_rs[i], p_rs[i] = riemannSolver.sample_solution(coord / T)
 
-plt.plot(x, pressure, 'o')
-plt.plot(x, p_rs, '-')
-plt.show()
+plotQuantity = r'density'
+plt.plot(x, rho, '--', label=r'Numerical solution')
+plt.plot(x, rho_rs, '-', label=r'True solution')
+plt.legend(loc='best')
+plt.xlabel(r'$x$')
+plt.ylabel(plotQuantity.capitalize())
+plt.title(r'Sod modified problem, N=' + str(N) +
+          ', time=' + str(T) + ', CFL number=' + str(CFL_NUMBER))
+# plt.show()
+plt.savefig('images/sod_modified_problem_weno5_' + plotQuantity.lower() +
+            '_N=' + str(N) + '_T=' + str(T) + '_CFL=' + str(CFL_NUMBER) +
+            '.eps')
